@@ -8,17 +8,21 @@ import (
 )
 
 var (
-	Log             *logger.Logger
+	log             *logger.Logger
 	awsDefaultVpcID string
 	bootstrapOnce   sync.Once
 )
 
 func init() {
 	bootstrapOnce.Do(func() {
+		if os.Getenv("AWS_DEFAULT_VPC_ID") != "" {
+			awsDefaultVpcID = os.Getenv("AWS_DEFAULT_VPC_ID")
+		}
+
 		lvl := os.Getenv("LOG_LEVEL")
 		if lvl == "" {
 			lvl = "INFO"
 		}
-		Log = logger.NewLogger("awswrapper", lvl, true)
+		log = logger.NewLogger("awswrapper", lvl, true)
 	})
 }
