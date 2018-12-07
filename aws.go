@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/aws/aws-sdk-go/service/elb"
 )
 
 // NewEC2 initializes and returns an instance of the EC2 API client
@@ -28,6 +29,15 @@ func NewECS(accessKeyID, secretAccessKey, region string) (*ecs.ECS, error) {
 	sess := session.New(cfg)
 	ecs := ecs.New(sess)
 	return ecs, err
+}
+
+// NewELB initializes and returns an instance of the ELB API client
+func NewELB(accessKeyID, secretAccessKey, region string) (*elb.ELB, error) {
+	var err error
+	cfg := aws.NewConfig().WithMaxRetries(10).WithRegion(region).WithCredentials(credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""))
+	sess := session.New(cfg)
+	elb := elb.New(sess)
+	return elb, err
 }
 
 // NewCloudwatchLogs initializes and returns an instance of the Cloudwatch logs API client
@@ -90,6 +100,84 @@ func GetInstanceDetails(accessKeyID, secretAccessKey, region, instanceID string)
 
 	if err != nil {
 		log.Warningf("ECS instance details retrieval failed for instance: %s; %s", instanceID, err.Error())
+		return nil, err
+	}
+
+	return response, err
+}
+
+// CreateLoadBalancer creates a load balancer in EC2 for the given region and parameters
+func CreateLoadBalancer(accessKeyID, secretAccessKey, region string, vpcID *string, name *string, securityGroupIds []string, listeners []*elb.Listener) (response *elb.CreateLoadBalancerOutput, err error) {
+	client, err := NewELB(accessKeyID, secretAccessKey, region)
+
+	groupIds := make([]*string, 0)
+	for i := range securityGroupIds {
+		groupIds = append(groupIds, stringOrNil(securityGroupIds[i]))
+	}
+
+	zones := make([]*string, 0)
+	subnets := make([]*string, 0)
+
+	if vpcID != nil && *vpcID == "" {
+		vpcsResp, err := GetVPCs(accessKeyID, secretAccessKey, region, nil)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to provision load balancer in region: %s; %s", region, err.Error())
+		}
+		if len(vpcsResp.Vpcs) > 0 {
+			log.Warningf("No default AWS VPC id provided; attempt to provision load balancer in %s region will use arbitrary VPC", region)
+			vpcID = vpcsResp.Vpcs[0].VpcId
+		}
+	}
+	availableSubnets, err := GetSubnets(accessKeyID, secretAccessKey, region, vpcID)
+	if err == nil {
+		for i := range availableSubnets.Subnets {
+			subnets = append(subnets, availableSubnets.Subnets[i].SubnetId)
+			zones = append(zones, availableSubnets.Subnets[i].AvailabilityZone)
+		}
+	}
+
+	response, err = client.CreateLoadBalancer(&elb.CreateLoadBalancerInput{
+		AvailabilityZones: zones,
+		Listeners:         listeners,
+		SecurityGroups:    groupIds,
+		LoadBalancerName:  name,
+		Subnets:           subnets,
+	})
+
+	if err != nil {
+		log.Warningf("Failed to provision load balancer in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// DeleteLoadBalancer deprovisions and removes a load balancer in EC2 for the given region and parameters
+func DeleteLoadBalancer(accessKeyID, secretAccessKey, region string, name *string) (response *elb.DeleteLoadBalancerOutput, err error) {
+	client, err := NewELB(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DeleteLoadBalancer(&elb.DeleteLoadBalancerInput{
+		LoadBalancerName: name,
+	})
+
+	if err != nil {
+		log.Warningf("Failed to deprovision load balancer in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// GetLoadBalancers retrieves EC2 load balancers for the given region
+func GetLoadBalancers(accessKeyID, secretAccessKey, region string, loadBalancerName *string) (response *elb.DescribeLoadBalancersOutput, err error) {
+	client, err := NewELB(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{
+		LoadBalancerNames: []*string{loadBalancerName},
+	})
+
+	if err != nil {
+		log.Warningf("Load balancer details retrieval failed for region: %s; %s", region, err.Error())
 		return nil, err
 	}
 
