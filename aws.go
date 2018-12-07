@@ -203,8 +203,8 @@ func RegisterInstanceWithLoadBalancer(accessKeyID, secretAccessKey, region strin
 	return response, nil
 }
 
-// DeregisterInstanceWithLoadBalancer creates a load balancer in EC2 for the given region and parameters
-func DeregisterInstanceWithLoadBalancer(accessKeyID, secretAccessKey, region string, loadBalancerName, instanceID *string) (response *elb.DeregisterInstancesFromLoadBalancerOutput, err error) {
+// DeregisterInstanceFromLoadBalancer creates a load balancer in EC2 for the given region and parameters
+func DeregisterInstanceFromLoadBalancer(accessKeyID, secretAccessKey, region string, loadBalancerName, instanceID *string) (response *elb.DeregisterInstancesFromLoadBalancerOutput, err error) {
 	client, err := NewELB(accessKeyID, secretAccessKey, region)
 
 	response, err = client.DeregisterInstancesFromLoadBalancer(&elb.DeregisterInstancesFromLoadBalancerInput{
