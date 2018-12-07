@@ -184,6 +184,44 @@ func GetLoadBalancers(accessKeyID, secretAccessKey, region string, loadBalancerN
 	return response, err
 }
 
+// RegisterInstanceWithLoadBalancer creates a load balancer in EC2 for the given region and parameters
+func RegisterInstanceWithLoadBalancer(accessKeyID, secretAccessKey, region string, loadBalancerName, instanceID *string) (response *elb.RegisterInstancesWithLoadBalancerOutput, err error) {
+	client, err := NewELB(accessKeyID, secretAccessKey, region)
+
+	response, err = client.RegisterInstancesWithLoadBalancer(&elb.RegisterInstancesWithLoadBalancerInput{
+		Instances: []*elb.Instance{
+			&elb.Instance{InstanceId: instanceID},
+		},
+		LoadBalancerName: loadBalancerName,
+	})
+
+	if err != nil {
+		log.Warningf("Failed to register instance with load balancer in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// DeregisterInstanceWithLoadBalancer creates a load balancer in EC2 for the given region and parameters
+func DeregisterInstanceWithLoadBalancer(accessKeyID, secretAccessKey, region string, loadBalancerName, instanceID *string) (response *elb.DeregisterInstancesFromLoadBalancerOutput, err error) {
+	client, err := NewELB(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DeregisterInstancesFromLoadBalancer(&elb.DeregisterInstancesFromLoadBalancerInput{
+		Instances: []*elb.Instance{
+			&elb.Instance{InstanceId: instanceID},
+		},
+		LoadBalancerName: loadBalancerName,
+	})
+
+	if err != nil {
+		log.Warningf("Failed to deregister instance from load balancer in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
 // GetSecurityGroups retrieves EC2 security group details for the given region
 func GetSecurityGroups(accessKeyID, secretAccessKey, region string) (response *ec2.DescribeSecurityGroupsOutput, err error) {
 	client, err := NewEC2(accessKeyID, secretAccessKey, region)
