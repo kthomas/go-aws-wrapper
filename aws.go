@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/elb"
+	"github.com/aws/aws-sdk-go/service/elbv2"
 )
 
 // NewEC2 initializes and returns an instance of the EC2 API client
@@ -37,6 +38,15 @@ func NewELB(accessKeyID, secretAccessKey, region string) (*elb.ELB, error) {
 	cfg := aws.NewConfig().WithMaxRetries(10).WithRegion(region).WithCredentials(credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""))
 	sess := session.New(cfg)
 	elb := elb.New(sess)
+	return elb, err
+}
+
+// NewELBv2 initializes and returns an instance of the ELB v2 API client
+func NewELBv2(accessKeyID, secretAccessKey, region string) (*elbv2.ELBV2, error) {
+	var err error
+	cfg := aws.NewConfig().WithMaxRetries(10).WithRegion(region).WithCredentials(credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""))
+	sess := session.New(cfg)
+	elb := elbv2.New(sess)
 	return elb, err
 }
 
@@ -182,6 +192,156 @@ func GetLoadBalancers(accessKeyID, secretAccessKey, region string, loadBalancerN
 	}
 
 	return response, err
+}
+
+// CreateLoadBalancerV2 creates a load balancer in EC2 for the given region and parameters
+func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID *string, name *string, securityGroupIds []string, listeners []*elb.Listener) (response *elbv2.CreateLoadBalancerOutput, err error) {
+	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
+
+	groupIds := make([]*string, 0)
+	for i := range securityGroupIds {
+		groupIds = append(groupIds, stringOrNil(securityGroupIds[i]))
+	}
+
+	zones := make([]*string, 0)
+	subnets := make([]*string, 0)
+
+	if vpcID != nil && *vpcID == "" {
+		vpcsResp, err := GetVPCs(accessKeyID, secretAccessKey, region, nil)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to provision load balancer in region: %s; %s", region, err.Error())
+		}
+		if len(vpcsResp.Vpcs) > 0 {
+			log.Warningf("No default AWS VPC id provided; attempt to provision load balancer in %s region will use arbitrary VPC", region)
+			vpcID = vpcsResp.Vpcs[0].VpcId
+		}
+	}
+	availableSubnets, err := GetSubnets(accessKeyID, secretAccessKey, region, vpcID)
+	if err == nil {
+		for i := range availableSubnets.Subnets {
+			subnets = append(subnets, availableSubnets.Subnets[i].SubnetId)
+			zones = append(zones, availableSubnets.Subnets[i].AvailabilityZone)
+		}
+	}
+
+	response, err = client.CreateLoadBalancer(&elbv2.CreateLoadBalancerInput{
+		SecurityGroups: groupIds,
+		Name:           name,
+		Subnets:        subnets,
+	})
+
+	if err != nil {
+		log.Warningf("Failed to provision load balancer in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// DeleteLoadBalancerV2 deprovisions and removes a load balancer in EC2 for the given region and parameters
+func DeleteLoadBalancerV2(accessKeyID, secretAccessKey, region string, loadBalancerARN *string) (response *elbv2.DeleteLoadBalancerOutput, err error) {
+	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DeleteLoadBalancer(&elbv2.DeleteLoadBalancerInput{
+		LoadBalancerArn: loadBalancerARN,
+	})
+
+	if err != nil {
+		log.Warningf("Failed to deprovision load balancer in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// CreateTargetGroup creates a target group for load balancing
+func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *string, name *string, port int64) (response *elbv2.CreateTargetGroupOutput, err error) {
+	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
+
+	if vpcID != nil && *vpcID == "" {
+		vpcsResp, err := GetVPCs(accessKeyID, secretAccessKey, region, nil)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create target group in region: %s; %s", region, err.Error())
+		}
+		if len(vpcsResp.Vpcs) > 0 {
+			log.Warningf("No default AWS VPC id provided; attempt to create target group in %s region will use arbitrary VPC", region)
+			vpcID = vpcsResp.Vpcs[0].VpcId
+		}
+	}
+
+	response, err = client.CreateTargetGroup(&elbv2.CreateTargetGroupInput{
+		Name:       name,
+		Port:       &port,
+		TargetType: stringOrNil("ip"),
+		VpcId:      vpcID,
+	})
+
+	if err != nil {
+		log.Warningf("Failed to register target group in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// DeleteTargetGroup creates a target group for load balancing
+func DeleteTargetGroup(accessKeyID, secretAccessKey, region string, targetGroupARN *string) (response *elbv2.DeleteTargetGroupOutput, err error) {
+	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DeleteTargetGroup(&elbv2.DeleteTargetGroupInput{
+		TargetGroupArn: targetGroupARN,
+	})
+
+	if err != nil {
+		log.Warningf("Failed to delete target group in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// RegisterTarget deregisters a docker container with a load-balanced target group
+func RegisterTarget(accessKeyID, secretAccessKey, region string, targetGroupARN, ipAddress *string, port *int64) (response *elbv2.RegisterTargetsOutput, err error) {
+	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
+
+	response, err = client.RegisterTargets(&elbv2.RegisterTargetsInput{
+		TargetGroupArn: targetGroupARN,
+		Targets: []*elbv2.TargetDescription{
+			&elbv2.TargetDescription{
+				Id:   ipAddress,
+				Port: port,
+			},
+		},
+	})
+
+	if err != nil {
+		log.Warningf("Failed to register target from load balancer in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// DeregisterTarget deregisters a docker container with a load-balanced target group
+func DeregisterTarget(accessKeyID, secretAccessKey, region string, targetGroupARN, ipAddress *string, port *int64) (response *elbv2.DeregisterTargetsOutput, err error) {
+	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DeregisterTargets(&elbv2.DeregisterTargetsInput{
+		TargetGroupArn: targetGroupARN,
+		Targets: []*elbv2.TargetDescription{
+			&elbv2.TargetDescription{
+				Id:   ipAddress,
+				Port: port,
+			},
+		},
+	})
+
+	if err != nil {
+		log.Warningf("Failed to deregister target from load balancer in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
 }
 
 // RegisterInstanceWithLoadBalancer creates a load balancer in EC2 for the given region and parameters
