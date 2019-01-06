@@ -254,6 +254,22 @@ func DeleteLoadBalancerV2(accessKeyID, secretAccessKey, region string, loadBalan
 	return response, nil
 }
 
+// GetLoadBalancersV2 retrieves EC2 load balancers for the given region
+func GetLoadBalancersV2(accessKeyID, secretAccessKey, region string, loadBalancerName *string) (response *elbv2.DescribeLoadBalancersOutput, err error) {
+	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{
+		Names: []*string{loadBalancerName},
+	})
+
+	if err != nil {
+		log.Warningf("Load balancer details retrieval failed for region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, err
+}
+
 // CreateTargetGroup creates a target group for load balancing
 func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *string, name *string, port int64) (response *elbv2.CreateTargetGroupOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
