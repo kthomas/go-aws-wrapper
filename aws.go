@@ -255,11 +255,12 @@ func DeleteLoadBalancerV2(accessKeyID, secretAccessKey, region string, loadBalan
 }
 
 // GetLoadBalancersV2 retrieves EC2 load balancers for the given region
-func GetLoadBalancersV2(accessKeyID, secretAccessKey, region string, loadBalancerName *string) (response *elbv2.DescribeLoadBalancersOutput, err error) {
+func GetLoadBalancersV2(accessKeyID, secretAccessKey, region string, loadBalancerArn *string, loadBalancerName *string) (response *elbv2.DescribeLoadBalancersOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
 
 	response, err = client.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{
-		Names: []*string{loadBalancerName},
+		LoadBalancerArns: []*string{loadBalancerArn},
+		Names:            []*string{loadBalancerName},
 	})
 
 	if err != nil {
