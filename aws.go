@@ -317,7 +317,7 @@ func DeleteTargetGroup(accessKeyID, secretAccessKey, region string, targetGroupA
 	return response, nil
 }
 
-// RegisterTarget deregisters a docker container with a load-balanced target group
+// RegisterTarget registers a docker container with a load-balanced target group
 func RegisterTarget(accessKeyID, secretAccessKey, region string, targetGroupARN, ipAddress *string, port *int64) (response *elbv2.RegisterTargetsOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
 
