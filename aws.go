@@ -195,7 +195,7 @@ func GetLoadBalancers(accessKeyID, secretAccessKey, region string, loadBalancerN
 }
 
 // CreateLoadBalancerV2 creates a load balancer in EC2 for the given region and parameters
-func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID *string, name *string, securityGroupIds []string, listeners []*elb.Listener) (response *elbv2.CreateLoadBalancerOutput, err error) {
+func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID *string, name *string, securityGroupIds []string) (response *elbv2.CreateLoadBalancerOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
 
 	groupIds := make([]*string, 0)
@@ -232,6 +232,32 @@ func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID *st
 
 	if err != nil {
 		log.Warningf("Failed to provision load balancer in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// CreateListenerV2 creates a load balanced listener in EC2 for the given region and parameters
+func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerARN, targetGroupARN, protocol *string, port *int64) (*elbv2.CreateListenerOutput, error) {
+	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
+
+	order := int64(1)
+	response, err := client.CreateListener(&elbv2.CreateListenerInput{
+		// Certificates []*Certificate `type:"list"`
+		DefaultActions: []*elbv2.Action{&elbv2.Action{
+			Order:          &order,
+			TargetGroupArn: targetGroupARN,
+			Type:           stringOrNil("forward"),
+		}},
+		LoadBalancerArn: loadBalancerARN,
+		Port:            port,
+		Protocol:        protocol,
+		// SslPolicy *string `type:"string"`
+	})
+
+	if err != nil {
+		log.Warningf("Failed to create load balanced listener in region: %s; %s", region, err.Error())
 		return nil, err
 	}
 
