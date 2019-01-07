@@ -298,7 +298,7 @@ func GetLoadBalancersV2(accessKeyID, secretAccessKey, region string, loadBalance
 }
 
 // CreateTargetGroup creates a target group for load balancing
-func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *string, name *string, port int64) (response *elbv2.CreateTargetGroupOutput, err error) {
+func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *string, name, protocol *string, port int64) (response *elbv2.CreateTargetGroupOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
 
 	if vpcID != nil && *vpcID == "" {
@@ -315,6 +315,7 @@ func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *strin
 	response, err = client.CreateTargetGroup(&elbv2.CreateTargetGroupInput{
 		Name:       name,
 		Port:       &port,
+		Protocol:   protocol,
 		TargetType: stringOrNil("ip"),
 		VpcId:      vpcID,
 	})
