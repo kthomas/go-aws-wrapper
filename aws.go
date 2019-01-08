@@ -195,7 +195,7 @@ func GetLoadBalancers(accessKeyID, secretAccessKey, region string, loadBalancerN
 }
 
 // CreateLoadBalancerV2 creates a load balancer in EC2 for the given region and parameters
-func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID *string, name *string, securityGroupIds []string) (response *elbv2.CreateLoadBalancerOutput, err error) {
+func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID, name, balancerType *string, securityGroupIds []string) (response *elbv2.CreateLoadBalancerOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
 
 	groupIds := make([]*string, 0)
@@ -228,6 +228,7 @@ func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID *st
 		SecurityGroups: groupIds,
 		Name:           name,
 		Subnets:        subnets,
+		Type:           balancerType,
 	})
 
 	if err != nil {
