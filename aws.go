@@ -706,7 +706,7 @@ func TerminateInstance(accessKeyID, secretAccessKey, region, instanceID string) 
 }
 
 // StartContainer starts a new ECS task for the given task definition
-func StartContainer(accessKeyID, secretAccessKey, region, taskDefinition string, launchType, cluster *string, securityGroupIds []string, subnetIds []string, overrides map[string]interface{}) (taskIds []string, err error) {
+func StartContainer(accessKeyID, secretAccessKey, region, taskDefinition string, launchType, cluster, vpcName *string, securityGroupIds []string, subnetIds []string, overrides map[string]interface{}) (taskIds []string, err error) {
 	client, err := NewECS(accessKeyID, secretAccessKey, region)
 
 	if launchType == nil {
@@ -740,8 +740,19 @@ func StartContainer(accessKeyID, secretAccessKey, region, taskDefinition string,
 				return taskIds, fmt.Errorf("Failed to start container in region: %s; %s", region, err.Error())
 			}
 			if len(vpcsResp.Vpcs) > 0 {
-				log.Warningf("No default AWS VPC id provided; attempt to start container in %s region will use arbitrary VPC", region)
-				vpcID = *vpcsResp.Vpcs[0].VpcId
+				if vpcName != nil {
+					for _, vpc := range vpcsResp.Vpcs {
+						for _, tag := range vpc.Tags {
+							if tag.Key != nil && *tag.Key == "name" && tag.Value != nil && tag.Value == vpcName {
+								vpcID = *vpc.VpcId
+								break
+							}
+						}
+					}
+				} else {
+					log.Warningf("No default AWS VPC id provided; attempt to start container in %s region will use arbitrary VPC", region)
+					vpcID = *vpcsResp.Vpcs[0].VpcId
+				}
 			}
 		}
 		availableSubnets, err := GetSubnets(accessKeyID, secretAccessKey, region, stringOrNil(vpcID))
