@@ -206,7 +206,7 @@ func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID, na
 	zones := make([]*string, 0)
 	subnets := make([]*string, 0)
 
-	if vpcID != nil && *vpcID == "" {
+	if vpcID == nil || *vpcID == "" {
 		vpcsResp, err := GetVPCs(accessKeyID, secretAccessKey, region, nil)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to provision load balancer in region: %s; %s", region, err.Error())
