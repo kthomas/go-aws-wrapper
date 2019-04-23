@@ -239,7 +239,7 @@ func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID, na
 	return response, nil
 }
 
-// CreateDefaultSubnets creates a load balanced listener in EC2 for the given region and parameters
+// CreateDefaultSubnets creates default subnets for the given VPC (which must be a default VPC)
 func CreateDefaultSubnets(accessKeyID, secretAccessKey, region, vpcID string) ([]*ec2.CreateDefaultSubnetOutput, error) {
 	response := make([]*ec2.CreateDefaultSubnetOutput, 0)
 	client, err := NewEC2(accessKeyID, secretAccessKey, region)
