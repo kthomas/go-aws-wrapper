@@ -239,6 +239,33 @@ func CreateLoadBalancerV2(accessKeyID, secretAccessKey, region string, vpcID, na
 	return response, nil
 }
 
+// CreateDefaultSubnets creates a load balanced listener in EC2 for the given region and parameters
+func CreateDefaultSubnets(accessKeyID, secretAccessKey, region, vpcID string) ([]*ec2.CreateDefaultSubnetOutput, error) {
+	response := make([]*ec2.CreateDefaultSubnetOutput, 0)
+	client, err := NewEC2(accessKeyID, secretAccessKey, region)
+
+	availabilityZones, err := client.DescribeAvailabilityZones(&ec2.DescribeAvailabilityZonesInput{})
+	if err != nil {
+		log.Warningf("Failed to list availability zones in region: %s; VPC: %s; %s", region, vpcID, err.Error())
+		return nil, err
+	}
+
+	for _, availabilityZone := range availabilityZones.AvailabilityZones {
+		defaultSubnetResponse, err := client.CreateDefaultSubnet(&ec2.CreateDefaultSubnetInput{
+			AvailabilityZone: availabilityZone.ZoneName,
+		})
+
+		if err != nil {
+			log.Warningf("Failed to create default subnet in availability zone: %s; region: %s; VPC: %s; %s", *availabilityZone.ZoneName, region, vpcID, err.Error())
+			return nil, err
+		}
+
+		response = append(response, defaultSubnetResponse)
+	}
+
+	return response, nil
+}
+
 // CreateListenerV2 creates a load balanced listener in EC2 for the given region and parameters
 func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerARN, targetGroupARN, protocol *string, port *int64) (*elbv2.CreateListenerOutput, error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
@@ -756,6 +783,11 @@ func StartContainer(accessKeyID, secretAccessKey, region, taskDefinition string,
 			}
 		}
 		availableSubnets, err := GetSubnets(accessKeyID, secretAccessKey, region, stringOrNil(vpcID))
+		if err == nil && availableSubnets != nil && len(availableSubnets.Subnets) == 0 {
+			CreateDefaultSubnets(accessKeyID, secretAccessKey, region, vpcID)
+		}
+
+		availableSubnets, err = GetSubnets(accessKeyID, secretAccessKey, region, stringOrNil(vpcID))
 		if err == nil {
 			for i := range availableSubnets.Subnets {
 				subnets = append(subnets, availableSubnets.Subnets[i].SubnetId)
