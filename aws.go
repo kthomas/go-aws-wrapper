@@ -325,6 +325,22 @@ func GetLoadBalancersV2(accessKeyID, secretAccessKey, region string, loadBalance
 	return response, err
 }
 
+// GetTargetGroup retrieves a list of target groups for a given load balancer
+func GetTargetGroup(accessKeyID, secretAccessKey, region, targetGroupName string) (response *elbv2.DescribeTargetGroupsOutput, err error) {
+	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DescribeTargetGroups(&elbv2.DescribeTargetGroupsInput{
+		Names: []*string{stringOrNil(targetGroupName)},
+	})
+
+	if err != nil {
+		log.Warningf("Failed to describe target group in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
 // CreateTargetGroup creates a target group for load balancing
 func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *string, name, protocol *string, port int64) (response *elbv2.CreateTargetGroupOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
