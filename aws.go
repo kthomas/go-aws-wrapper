@@ -926,7 +926,7 @@ func GetContainerDetails(accessKeyID, secretAccessKey, region, taskID string, cl
 }
 
 // GetContainerLogEvents returns cloudwatch log events for the given ECS docker container task given its task id=
-func GetContainerLogEvents(accessKeyID, secretAccessKey, region, taskID string, cluster *string) (response *cloudwatchlogs.GetLogEventsOutput, err error) {
+func GetContainerLogEvents(accessKeyID, secretAccessKey, region, taskID string, cluster *string, startFromHead bool, startTime, endTime, limit *int64, nextToken *string) (response *cloudwatchlogs.GetLogEventsOutput, err error) {
 	containerDetails, err := GetContainerDetails(accessKeyID, secretAccessKey, region, taskID, cluster)
 	if err == nil {
 		if len(containerDetails.Tasks) > 0 {
@@ -944,7 +944,7 @@ func GetContainerLogEvents(accessKeyID, secretAccessKey, region, taskID string, 
 							taskArnSplitIdx := strings.LastIndex(*task.TaskArn, "/")
 							taskArn := string(*task.TaskArn)
 							logStream := fmt.Sprintf("%s/%s/%s", *logStreamPrefix, *containerDefinition.Name, taskArn[taskArnSplitIdx+1:])
-							return GetLogEvents(accessKeyID, secretAccessKey, *logRegion, *logGroup, logStream, true)
+							return GetLogEvents(accessKeyID, secretAccessKey, *logRegion, *logGroup, logStream, startFromHead, startTime, endTime, limit, nextToken)
 						}
 					}
 				}
@@ -955,7 +955,7 @@ func GetContainerLogEvents(accessKeyID, secretAccessKey, region, taskID string, 
 }
 
 // GetLogEvents retrieves cloudwatch log events for a given log stream id
-func GetLogEvents(accessKeyID, secretAccessKey, region, logGroupID string, logStreamID string, startFromHead bool, startTime *int64, endTime *endTime, limit *int64, nextToken *string) (response *cloudwatchlogs.GetLogEventsOutput, err error) {
+func GetLogEvents(accessKeyID, secretAccessKey, region, logGroupID string, logStreamID string, startFromHead bool, startTime, endTime, limit *int64, nextToken *string) (response *cloudwatchlogs.GetLogEventsOutput, err error) {
 	client, err := NewCloudwatchLogs(accessKeyID, secretAccessKey, region)
 
 	response, err = client.GetLogEvents(&cloudwatchlogs.GetLogEventsInput{
