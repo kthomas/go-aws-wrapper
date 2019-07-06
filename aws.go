@@ -955,13 +955,17 @@ func GetContainerLogEvents(accessKeyID, secretAccessKey, region, taskID string, 
 }
 
 // GetLogEvents retrieves cloudwatch log events for a given log stream id
-func GetLogEvents(accessKeyID, secretAccessKey, region, logGroupID string, logStreamID string, startFromHead bool) (response *cloudwatchlogs.GetLogEventsOutput, err error) {
+func GetLogEvents(accessKeyID, secretAccessKey, region, logGroupID string, logStreamID string, startFromHead bool, startTime *int64, endTime *endTime, limit *int64, nextToken *string) (response *cloudwatchlogs.GetLogEventsOutput, err error) {
 	client, err := NewCloudwatchLogs(accessKeyID, secretAccessKey, region)
 
 	response, err = client.GetLogEvents(&cloudwatchlogs.GetLogEventsInput{
 		LogGroupName:  stringOrNil(logGroupID),
 		LogStreamName: stringOrNil(logStreamID),
 		StartFromHead: &startFromHead,
+		StartTime:     startTime,
+		EndTime:       endTime,
+		Limit:         limit,
+		NextToken:     nextToken,
 	})
 
 	if err != nil {
