@@ -343,7 +343,7 @@ func GetTargetGroup(accessKeyID, secretAccessKey, region, targetGroupName string
 }
 
 // CreateTargetGroup creates a target group for load balancing
-func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *string, name, protocol *string, port int64, healthCheckPort *int64, healthCheckPath *string) (response *elbv2.CreateTargetGroupOutput, err error) {
+func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *string, name, protocol *string, port int64, healthCheckPort, healthCheckStatusCode *int64, healthCheckPath *string) (response *elbv2.CreateTargetGroupOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
 
 	if vpcID != nil && *vpcID == "" {
@@ -362,6 +362,11 @@ func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *strin
 		healthCheckPortStr = stringOrNil(strconv.Itoa(int(*healthCheckPort)))
 	}
 
+	var healthCheckStatusCodeStr *string
+	if healthCheckStatusCode != nil {
+		healthCheckStatusCodeStr = stringOrNil(strconv.Itoa(int(*healthCheckStatusCode)))
+	}
+
 	response, err = client.CreateTargetGroup(&elbv2.CreateTargetGroupInput{
 		Name:            name,
 		Port:            &port,
@@ -370,6 +375,7 @@ func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *strin
 		VpcId:           vpcID,
 		HealthCheckPath: healthCheckPath,
 		HealthCheckPort: healthCheckPortStr,
+		Matcher:         &elbv2.Matcher{HttpCode: healthCheckStatusCodeStr},
 	})
 
 	if err != nil {
