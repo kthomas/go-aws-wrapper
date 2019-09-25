@@ -2,6 +2,7 @@ package awswrapper
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -342,7 +343,7 @@ func GetTargetGroup(accessKeyID, secretAccessKey, region, targetGroupName string
 }
 
 // CreateTargetGroup creates a target group for load balancing
-func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *string, name, protocol *string, port int64) (response *elbv2.CreateTargetGroupOutput, err error) {
+func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *string, name, protocol *string, port int64, healthCheckPort *int64, healthCheckPath *string) (response *elbv2.CreateTargetGroupOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
 
 	if vpcID != nil && *vpcID == "" {
@@ -356,12 +357,19 @@ func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *strin
 		}
 	}
 
+	var healthCheckPortStr *string
+	if healthCheckPort != nil {
+		healthCheckPortStr = stringOrNil(strconv.Itoa(int(*healthCheckPort)))
+	}
+
 	response, err = client.CreateTargetGroup(&elbv2.CreateTargetGroupInput{
-		Name:       name,
-		Port:       &port,
-		Protocol:   protocol,
-		TargetType: stringOrNil("ip"),
-		VpcId:      vpcID,
+		Name:            name,
+		Port:            &port,
+		Protocol:        protocol,
+		TargetType:      stringOrNil("ip"),
+		VpcId:           vpcID,
+		HealthCheckPath: healthCheckPath,
+		HealthCheckPort: healthCheckPortStr,
 	})
 
 	if err != nil {
