@@ -362,7 +362,7 @@ func CreateTargetGroup(accessKeyID, secretAccessKey, region string, vpcID *strin
 		healthCheckPortStr = stringOrNil(strconv.Itoa(int(*healthCheckPort)))
 	}
 
-	var healthCheckStatusCodeStr *string
+	healthCheckStatusCodeStr := stringOrNil("200")
 	if healthCheckStatusCode != nil {
 		healthCheckStatusCodeStr = stringOrNil(strconv.Itoa(int(*healthCheckStatusCode)))
 	}
