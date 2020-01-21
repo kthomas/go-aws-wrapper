@@ -316,10 +316,10 @@ func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerA
 }
 
 // ImportSelfSignedCertificate generates a self-signed certificate in ACM for the given region and parameters
-func ImportSelfSignedCertificate(accessKeyID, secretAccessKey, region string, certificateARN *string) (response *acm.ImportCertificateOutput, err error) {
+func ImportSelfSignedCertificate(accessKeyID, secretAccessKey, region string, dnsNames []string, certificateARN *string) (response *acm.ImportCertificateOutput, err error) {
 	client, err := NewACM(accessKeyID, secretAccessKey, region)
 
-	key, cert, err := selfsigned.GenerateWithKeySize(2048)
+	key, cert, err := selfsigned.GenerateWithKeySize(2048, dnsNames)
 	if err != nil {
 		return nil, errors.New("Failed to import self-signed cert to ACM")
 	}
