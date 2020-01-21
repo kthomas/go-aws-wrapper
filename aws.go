@@ -319,7 +319,7 @@ func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerA
 func ImportSelfSignedCertificate(accessKeyID, secretAccessKey, region string, certificateARN *string) (response *acm.ImportCertificateOutput, err error) {
 	client, err := NewACM(accessKeyID, secretAccessKey, region)
 
-	key, cert, err := selfsigned.Generate()
+	key, cert, err := selfsigned.GenerateWithKeySize(2048)
 	if err != nil {
 		return nil, errors.New("Failed to import self-signed cert to ACM")
 	}
