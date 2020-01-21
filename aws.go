@@ -1,6 +1,7 @@
 package awswrapper
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -268,12 +269,11 @@ func CreateDefaultSubnets(accessKeyID, secretAccessKey, region, vpcID string) ([
 }
 
 // CreateListenerV2 creates a load balanced listener in EC2 for the given region and parameters
-func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerARN, targetGroupARN, protocol *string, port *int64) (*elbv2.CreateListenerOutput, error) {
+func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerARN, targetGroupARN, protocol *string, port *int64, certificate interface{}) (*elbv2.CreateListenerOutput, error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
 
 	order := int64(1)
-	response, err := client.CreateListener(&elbv2.CreateListenerInput{
-		// Certificates []*Certificate `type:"list"`
+	params := &elbv2.CreateListenerInput{
 		DefaultActions: []*elbv2.Action{&elbv2.Action{
 			Order:          &order,
 			TargetGroupArn: targetGroupARN,
@@ -283,7 +283,17 @@ func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerA
 		Port:            port,
 		Protocol:        protocol,
 		// SslPolicy *string `type:"string"`
-	})
+	}
+
+	if certificate != nil {
+		if cert, certOk := certificate.(*elbv2.Certificate); certOk {
+			params.SetCertificates([]*elbv2.Certificate{cert})
+		} else {
+			return nil, errors.New("Failed to create load balanced listener in region: invalid certificate")
+		}
+	}
+
+	response, err := client.CreateListener(params)
 
 	if err != nil {
 		log.Warningf("Failed to create load balanced listener in region: %s; %s", region, err.Error())
