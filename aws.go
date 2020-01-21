@@ -9,12 +9,24 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+
+	selfsigned "github.com/kthomas/go-self-signed-cert"
 )
+
+// NewACM initializes and returns an instance of the ACM API client
+func NewACM(accessKeyID, secretAccessKey, region string) (*acm.ACM, error) {
+	var err error
+	cfg := aws.NewConfig().WithMaxRetries(10).WithRegion(region).WithCredentials(credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""))
+	sess := session.New(cfg)
+	acm := acm.New(sess)
+	return acm, err
+}
 
 // NewEC2 initializes and returns an instance of the EC2 API client
 func NewEC2(accessKeyID, secretAccessKey, region string) (*ec2.EC2, error) {
@@ -297,6 +309,50 @@ func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerA
 
 	if err != nil {
 		log.Warningf("Failed to create load balanced listener in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// ImportSelfSignedCertificate generates a self-signed certificate in ACM for the given region and parameters
+func ImportSelfSignedCertificate(accessKeyID, secretAccessKey, region string, certificateARN *string) (response *acm.ImportCertificateOutput, err error) {
+	client, err := NewACM(accessKeyID, secretAccessKey, region)
+
+	cert, key, err := selfsigned.Generate()
+	if err != nil {
+		return nil, errors.New("Failed to import self-signed cert to ACM")
+	}
+
+	params := &acm.ImportCertificateInput{
+		Certificate: cert,
+		PrivateKey:  key,
+	}
+
+	if certificateARN != nil {
+		params.SetCertificateArn(*certificateARN)
+	}
+
+	response, err = client.ImportCertificate(params)
+
+	if err != nil {
+		log.Warningf("Failed to delete certificate in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// DeleteCertificate removes a certificate in ACM for the given region and parameters
+func DeleteCertificate(accessKeyID, secretAccessKey, region string, certificateARN *string) (response *acm.DeleteCertificateOutput, err error) {
+	client, err := NewACM(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DeleteCertificate(&acm.DeleteCertificateInput{
+		CertificateArn: certificateARN,
+	})
+
+	if err != nil {
+		log.Warningf("Failed to delete certificate in region: %s; %s", region, err.Error())
 		return nil, err
 	}
 
