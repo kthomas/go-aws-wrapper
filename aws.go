@@ -325,19 +325,19 @@ func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerA
 	return response, nil
 }
 
-// CreateDNSRecord creates the given DNS record using the Route53 API
+// CreateDNSRecord creates or updates the given DNS record using the Route53 API
 func CreateDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType string, value []string, ttl int64) (response *route53.ChangeResourceRecordSetsOutput, err error) {
 	client, err := NewRoute53(accessKeyID, secretAccessKey, region)
 
-	changes := make([]*route53.Change, 1)
-	records := make([]*route53.ResourceRecord, len(value))
+	changes := make([]*route53.Change, 0)
+	records := make([]*route53.ResourceRecord, 0)
 	for _, val := range value {
 		records = append(records, &route53.ResourceRecord{
 			Value: &val,
 		})
 	}
 	changes = append(changes, &route53.Change{
-		Action: stringOrNil("CREATE"),
+		Action: stringOrNil("UPSERT"),
 		ResourceRecordSet: &route53.ResourceRecordSet{
 			Name:            &name,
 			ResourceRecords: records,
@@ -367,8 +367,8 @@ func CreateDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, r
 func DeleteDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType string, value []string, ttl int64) (response *route53.ChangeResourceRecordSetsOutput, err error) {
 	client, err := NewRoute53(accessKeyID, secretAccessKey, region)
 
-	changes := make([]*route53.Change, 1)
-	records := make([]*route53.ResourceRecord, len(value))
+	changes := make([]*route53.Change, 0)
+	records := make([]*route53.ResourceRecord, 0)
 	for _, val := range value {
 		records = append(records, &route53.ResourceRecord{
 			Value: &val,
