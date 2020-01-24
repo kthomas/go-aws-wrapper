@@ -358,7 +358,7 @@ func CreateDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, r
 	if err != nil {
 		if strings.Contains(err.Error(), fmt.Sprintf("is not permitted as it creates a %s or alias loop in the zone", recordType)) {
 			log.Debugf("Retrying creation of DNS %s record as alias", recordType)
-			return CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType, value, ttl, false)
+			return CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType, value, false)
 		}
 
 		log.Warningf("Failed to create DNS record: %s; %s", region, err.Error())
@@ -369,7 +369,7 @@ func CreateDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, r
 }
 
 // CreateDNSAliasRecord creates or updates the given DNS alias record using the Route53 API
-func CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType string, value []string, ttl int64, evaluateTargetHealth bool) (response *route53.ChangeResourceRecordSetsOutput, err error) {
+func CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType string, value []string, evaluateTargetHealth bool) (response *route53.ChangeResourceRecordSetsOutput, err error) {
 	client, err := NewRoute53(accessKeyID, secretAccessKey, region)
 
 	changes := make([]*route53.Change, 0)
@@ -382,7 +382,6 @@ func CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, na
 				EvaluateTargetHealth: &evaluateTargetHealth,
 				HostedZoneId:         &hostedZoneID,
 			},
-			TTL:  &ttl,
 			Type: &recordType,
 		},
 	})
