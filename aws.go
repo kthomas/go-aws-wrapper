@@ -356,7 +356,48 @@ func CreateDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, r
 	response, err = client.ChangeResourceRecordSets(params)
 
 	if err != nil {
+		if strings.Contains(err.Error(), fmt.Sprintf("is not permitted as it creates a %s or alias loop in the zone", recordType)) {
+			log.Debugf("Retrying creation of DNS %s record as alias", recordType)
+			return CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType, value, ttl, false)
+		}
+
 		log.Warningf("Failed to create DNS record: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// CreateDNSAliasRecord creates or updates the given DNS alias record using the Route53 API
+func CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType string, value []string, ttl int64, evaluateTargetHealth bool) (response *route53.ChangeResourceRecordSetsOutput, err error) {
+	client, err := NewRoute53(accessKeyID, secretAccessKey, region)
+
+	changes := make([]*route53.Change, 0)
+	changes = append(changes, &route53.Change{
+		Action: stringOrNil("UPSERT"),
+		ResourceRecordSet: &route53.ResourceRecordSet{
+			Name: &name,
+			AliasTarget: &route53.AliasTarget{
+				DNSName:              &value[0],
+				EvaluateTargetHealth: &evaluateTargetHealth,
+				HostedZoneId:         &hostedZoneID,
+			},
+			TTL:  &ttl,
+			Type: &recordType,
+		},
+	})
+
+	params := &route53.ChangeResourceRecordSetsInput{
+		ChangeBatch: &route53.ChangeBatch{
+			Changes: changes,
+		},
+		HostedZoneId: &hostedZoneID,
+	}
+
+	response, err = client.ChangeResourceRecordSets(params)
+
+	if err != nil {
+		log.Warningf("Failed to create DNS alias record: %s; %s", region, err.Error())
 		return nil, err
 	}
 
