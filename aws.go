@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/aws/aws-sdk-go/service/route53"
 
 	selfsigned "github.com/kthomas/go-self-signed-cert"
 )
@@ -71,6 +72,15 @@ func NewCloudwatchLogs(accessKeyID, secretAccessKey, region string) (*cloudwatch
 	sess := session.New(cfg)
 	logs := cloudwatchlogs.New(sess)
 	return logs, err
+}
+
+// NewRoute53 initializes and returns an instance of the Route53 API client
+func NewRoute53(accessKeyID, secretAccessKey, region string) (*route53.Route53, error) {
+	var err error
+	cfg := aws.NewConfig().WithMaxRetries(10).WithRegion(region).WithCredentials(credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""))
+	sess := session.New(cfg)
+	route53 := route53.New(sess)
+	return route53, err
 }
 
 // LaunchAMI launches an EC2 instance for a given AMI id
@@ -315,6 +325,105 @@ func CreateListenerV2(accessKeyID, secretAccessKey, region string, loadBalancerA
 	return response, nil
 }
 
+// CreateDNSRecord creates the given DNS record using the Route53 API
+func CreateDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType string, value []string, ttl int64) (response *route53.ChangeResourceRecordSetsOutput, err error) {
+	client, err := NewRoute53(accessKeyID, secretAccessKey, region)
+
+	changes := make([]*route53.Change, 1)
+	records := make([]*route53.ResourceRecord, len(value))
+	for _, val := range value {
+		records = append(records, &route53.ResourceRecord{
+			Value: &val,
+		})
+	}
+	changes = append(changes, &route53.Change{
+		Action: stringOrNil("CREATE"),
+		ResourceRecordSet: &route53.ResourceRecordSet{
+			Name:            &name,
+			ResourceRecords: records,
+			TTL:             &ttl,
+			Type:            &recordType,
+		},
+	})
+
+	params := &route53.ChangeResourceRecordSetsInput{
+		ChangeBatch: &route53.ChangeBatch{
+			Changes: changes,
+		},
+		HostedZoneId: &hostedZoneID,
+	}
+
+	response, err = client.ChangeResourceRecordSets(params)
+
+	if err != nil {
+		log.Warningf("Failed to create DNS record: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// DeleteDNSRecord deletes the given DNS record using the Route53 API
+func DeleteDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType string, value []string, ttl int64) (response *route53.ChangeResourceRecordSetsOutput, err error) {
+	client, err := NewRoute53(accessKeyID, secretAccessKey, region)
+
+	changes := make([]*route53.Change, 1)
+	records := make([]*route53.ResourceRecord, len(value))
+	for _, val := range value {
+		records = append(records, &route53.ResourceRecord{
+			Value: &val,
+		})
+	}
+	changes = append(changes, &route53.Change{
+		Action: stringOrNil("DELETE"),
+		ResourceRecordSet: &route53.ResourceRecordSet{
+			Name:            &name,
+			ResourceRecords: records,
+			TTL:             &ttl,
+			Type:            &recordType,
+		},
+	})
+
+	params := &route53.ChangeResourceRecordSetsInput{
+		ChangeBatch: &route53.ChangeBatch{
+			Changes: changes,
+		},
+		HostedZoneId: &hostedZoneID,
+	}
+
+	response, err = client.ChangeResourceRecordSets(params)
+
+	if err != nil {
+		log.Warningf("Failed to delete DNS record: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// ImportCertificate imports the given certificate to ACM for the given region and parameters
+func ImportCertificate(accessKeyID, secretAccessKey, region string, key, cert, chain []byte) (response *acm.ImportCertificateOutput, err error) {
+	client, err := NewACM(accessKeyID, secretAccessKey, region)
+
+	params := &acm.ImportCertificateInput{
+		Certificate: cert,
+		PrivateKey:  key,
+	}
+
+	if chain != nil {
+		params.SetCertificateChain(chain)
+	}
+
+	response, err = client.ImportCertificate(params)
+
+	if err != nil {
+		log.Warningf("Failed to import certificate in region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, nil
+}
+
 // ImportSelfSignedCertificate generates a self-signed certificate in ACM for the given region and parameters
 func ImportSelfSignedCertificate(accessKeyID, secretAccessKey, region string, dnsNames []string, certificateARN *string) (response *acm.ImportCertificateOutput, err error) {
 	client, err := NewACM(accessKeyID, secretAccessKey, region)
@@ -336,7 +445,7 @@ func ImportSelfSignedCertificate(accessKeyID, secretAccessKey, region string, dn
 	response, err = client.ImportCertificate(params)
 
 	if err != nil {
-		log.Warningf("Failed to delete certificate in region: %s; %s", region, err.Error())
+		log.Warningf("Failed to import certificate in region: %s; %s", region, err.Error())
 		return nil, err
 	}
 
