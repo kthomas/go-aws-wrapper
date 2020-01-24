@@ -357,8 +357,25 @@ func CreateDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, r
 
 	if err != nil {
 		if strings.Contains(err.Error(), fmt.Sprintf("is not permitted as it creates a %s or alias loop in the zone", recordType)) {
-			log.Debugf("Retrying creation of DNS %s record as alias", recordType)
-			return CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType, value, false)
+			var nextMarker *string
+			queryingLoadBalancers := true
+			for queryingLoadBalancers {
+				lbresp, err := GetLoadBalancersV2(accessKeyID, secretAccessKey, region, nil, nil, nextMarker)
+				if err != nil {
+					log.Warningf("Failed to list load balancers; %s", err.Error())
+					return nil, fmt.Errorf("Failed to create DNS record: %s; failed to create record as alias; %s", region, err.Error())
+				}
+
+				for _, lb := range lbresp.LoadBalancers {
+					if lb.CanonicalHostedZoneId != nil && lb.DNSName != nil && *lb.DNSName == value[0] {
+						log.Debugf("Retrying creation of DNS %s record as alias to loadbalancer hostname: %s; canonical hosted zone id: %s", recordType, *lb.DNSName, *lb.CanonicalHostedZoneId)
+						return CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, *lb.CanonicalHostedZoneId, name, recordType, value, false)
+					}
+				}
+
+				nextMarker = lbresp.NextMarker
+				queryingLoadBalancers = nextMarker != nil && *nextMarker != ""
+			}
 		}
 
 		log.Warningf("Failed to create DNS record: %s; %s", region, err.Error())
@@ -369,7 +386,7 @@ func CreateDNSRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, r
 }
 
 // CreateDNSAliasRecord creates or updates the given DNS alias record using the Route53 API
-func CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, name, recordType string, value []string, evaluateTargetHealth bool) (response *route53.ChangeResourceRecordSetsOutput, err error) {
+func CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, aliasHostedZoneID, name, recordType string, value []string, evaluateTargetHealth bool) (response *route53.ChangeResourceRecordSetsOutput, err error) {
 	client, err := NewRoute53(accessKeyID, secretAccessKey, region)
 
 	changes := make([]*route53.Change, 0)
@@ -380,7 +397,7 @@ func CreateDNSAliasRecord(accessKeyID, secretAccessKey, region, hostedZoneID, na
 			AliasTarget: &route53.AliasTarget{
 				DNSName:              &value[0],
 				EvaluateTargetHealth: &evaluateTargetHealth,
-				HostedZoneId:         &hostedZoneID,
+				HostedZoneId:         &aliasHostedZoneID,
 			},
 			Type: &recordType,
 		},
@@ -525,13 +542,21 @@ func DeleteLoadBalancerV2(accessKeyID, secretAccessKey, region string, loadBalan
 }
 
 // GetLoadBalancersV2 retrieves EC2 load balancers for the given region
-func GetLoadBalancersV2(accessKeyID, secretAccessKey, region string, loadBalancerArn *string, loadBalancerName *string) (response *elbv2.DescribeLoadBalancersOutput, err error) {
+func GetLoadBalancersV2(accessKeyID, secretAccessKey, region string, loadBalancerArn *string, loadBalancerName, nextMarker *string) (response *elbv2.DescribeLoadBalancersOutput, err error) {
 	client, err := NewELBv2(accessKeyID, secretAccessKey, region)
 
-	response, err = client.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{
-		LoadBalancerArns: []*string{loadBalancerArn},
-		Names:            []*string{loadBalancerName},
-	})
+	params := &elbv2.DescribeLoadBalancersInput{}
+	if loadBalancerArn != nil && *loadBalancerArn != "" {
+		params.LoadBalancerArns = []*string{loadBalancerArn}
+	}
+	if loadBalancerName != nil && *loadBalancerName != "" {
+		params.Names = []*string{loadBalancerName}
+	}
+	if nextMarker != nil && *nextMarker != "" {
+		params.Marker = nextMarker
+	}
+
+	response, err = client.DescribeLoadBalancers(params)
 
 	if err != nil {
 		log.Warningf("Load balancer details retrieval failed for region: %s; %s", region, err.Error())
