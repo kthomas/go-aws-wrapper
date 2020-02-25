@@ -207,12 +207,12 @@ func CreateTaskDefinition(
 		Family:                  stringOrNil(taskDefinition),
 		Memory:                  containerMemory,
 		NetworkMode:             stringOrNil("awsvpc"), // awsvpc required for fargate
-		RequiresCompatibilities: []*string{stringOrNil("fargate")},
+		RequiresCompatibilities: []*string{stringOrNil("FARGATE")},
 		TaskRoleArn:             taskRoleArn,
 	})
 
 	if err != nil {
-		log.Warningf("ECS task definition retrieval failed for task definition: %;: %s", taskDefinition, err.Error())
+		log.Warningf("ECS task definition registration failed for task definition: %; %s", taskDefinition, err.Error())
 		return nil, err
 	}
 
@@ -1206,7 +1206,23 @@ func StartContainer(
 		log.Debugf("Attempting to create task definition for image: %s", *image)
 		containerTaskDefinitionUUID, _ := uuid.NewV4()
 		containerTaskDefinition = stringOrNil(containerTaskDefinitionUUID.String())
-		_, err := CreateTaskDefinition(accessKeyID, secretAccessKey, region, *containerTaskDefinition, *image, image, nil, nil, nil, nil, nil, []*string{}, []*string{}, map[string]interface{}{}, security)
+		_, err := CreateTaskDefinition(
+			accessKeyID,
+			secretAccessKey,
+			region,
+			*containerTaskDefinition,
+			*image,
+			image,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			[]*string{},
+			[]*string{},
+			map[string]interface{}{},
+			security,
+		)
 		if err != nil {
 			return taskIds, fmt.Errorf("Failed to create container in region: %s; %s", region, err.Error())
 		}
