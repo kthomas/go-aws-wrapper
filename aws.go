@@ -136,6 +136,7 @@ func CreateTaskDefinition(
 	if containerName == nil {
 		containerName = stringOrNil("default")
 	}
+	containerName = stringOrNil(strings.ReplaceAll(*containerName, "/", "-"))
 
 	essential := true
 
@@ -212,7 +213,7 @@ func CreateTaskDefinition(
 	})
 
 	if err != nil {
-		log.Warningf("ECS task definition registration failed for task definition: %; %s", taskDefinition, err.Error())
+		log.Warningf("ECS task definition registration failed for task definition: %s; %s", taskDefinition, err.Error())
 		return nil, err
 	}
 
