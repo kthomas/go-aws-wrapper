@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/route53"
 
 	selfsigned "github.com/kthomas/go-self-signed-cert"
+	uuid "github.com/kthomas/go.uuid"
 )
 
 // NewACM initializes and returns an instance of the ACM API client
@@ -1114,12 +1115,22 @@ func TerminateInstance(accessKeyID, secretAccessKey, region, instanceID string) 
 
 // StartContainer starts a new ECS task for the given task definition
 func StartContainer(
-	accessKeyID, secretAccessKey, region, taskDefinition string,
+	accessKeyID, secretAccessKey, region string,
+	image, taskDefinition *string,
 	launchType, cluster, vpcName *string,
 	securityGroupIds []string,
 	subnetIds []string,
-	overrides map[string]interface{},
+	environment map[string]interface{},
+	security map[string]interface{},
 ) (taskIds []string, err error) {
+	if image == nil && taskDefinition == nil {
+		return taskIds, fmt.Errorf("Unable to start container in region: %s; container can only be started with a valid image or task definition", region)
+	}
+
+	if taskDefinition != nil && security != nil && len(security) > 0 {
+		return taskIds, fmt.Errorf("Unable to start container in region: %s; security configuration not yet supported when a task definition arn is provided as the target to be started", region)
+	}
+
 	client, err := NewECS(accessKeyID, secretAccessKey, region)
 
 	if launchType == nil {
@@ -1181,9 +1192,30 @@ func StartContainer(
 		}
 	}
 
-	taskDefinitionResp, err := GetTaskDefinition(accessKeyID, secretAccessKey, region, taskDefinition)
-	if err != nil {
-		return taskIds, fmt.Errorf("Failed to start container in region: %s; %s", region, err.Error())
+	var taskDefinitionResp *ecs.DescribeTaskDefinitionOutput
+	var containerTaskDefinition *string
+
+	if taskDefinition != nil {
+		taskDefResp, err := GetTaskDefinition(accessKeyID, secretAccessKey, region, *taskDefinition)
+		if err != nil {
+			return taskIds, fmt.Errorf("Failed to start container in region: %s; %s", region, err.Error())
+		}
+		taskDefinitionResp = taskDefResp
+		containerTaskDefinition = taskDefinition
+	} else {
+		log.Debugf("Attempting to create task definition for image: %s", *image)
+		containerTaskDefinitionUUID, _ := uuid.NewV4()
+		containerTaskDefinition = stringOrNil(containerTaskDefinitionUUID.String())
+		_, err := CreateTaskDefinition(accessKeyID, secretAccessKey, region, *containerTaskDefinition, *image, image, nil, nil, nil, nil, nil, []*string{}, []*string{}, map[string]interface{}{}, security)
+		if err != nil {
+			return taskIds, fmt.Errorf("Failed to create container in region: %s; %s", region, err.Error())
+		}
+		taskDefResp, err := GetTaskDefinition(accessKeyID, secretAccessKey, region, *containerTaskDefinition)
+		if err != nil {
+			return taskIds, fmt.Errorf("Failed to start container in region: %s; failed to retrieve created task definition; %s", region, err.Error())
+		}
+		taskDefinitionResp = taskDefResp
+		containerTaskDefinition = taskDefinition
 	}
 
 	containerOverrides := make([]*ecs.ContainerOverride, 0)
@@ -1191,7 +1223,7 @@ func StartContainer(
 		containerDefinition := taskDefinitionResp.TaskDefinition.ContainerDefinitions[i]
 
 		env := make([]*ecs.KeyValuePair, 0)
-		if envOverrides, envOverridesOk := overrides["environment"].(map[string]interface{}); envOverridesOk {
+		if envOverrides, envOverridesOk := environment["environment"].(map[string]interface{}); envOverridesOk {
 			for envVar := range envOverrides {
 				if val, valOk := envOverrides[envVar].(string); valOk {
 					env = append(env, &ecs.KeyValuePair{
@@ -1215,7 +1247,7 @@ func StartContainer(
 
 	response, err := client.RunTask(&ecs.RunTaskInput{
 		Cluster:        cluster,
-		TaskDefinition: stringOrNil(taskDefinition),
+		TaskDefinition: containerTaskDefinition,
 		LaunchType:     launchType,
 		NetworkConfiguration: &ecs.NetworkConfiguration{
 			AwsvpcConfiguration: &ecs.AwsVpcConfiguration{
