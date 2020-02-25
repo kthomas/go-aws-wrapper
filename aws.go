@@ -108,6 +108,116 @@ func LaunchAMI(accessKeyID, secretAccessKey, region, imageID, userData string, m
 	return instanceIds, err
 }
 
+// CreateTaskDefinition creates an ECS task definition containing a single container
+func CreateTaskDefinition(
+	accessKeyID, secretAccessKey, region, taskDefinition, image string,
+	name, cpu, memory, executionRoleArn, taskRoleArn, hostname *string,
+	cmd, entrypoint []*string,
+	environment, security map[string]interface{},
+) (response *ecs.RegisterTaskDefinitionOutput, err error) {
+	client, err := NewECS(accessKeyID, secretAccessKey, region)
+
+	containerCPU := cpu
+	if containerCPU == nil {
+		containerCPU = stringOrNil("1024")
+	}
+	containerCPUInt, _ := strconv.Atoi(*containerCPU)
+	containerCPUInt64 := int64(containerCPUInt)
+
+	containerMemory := memory
+	if containerMemory == nil {
+		containerMemory = stringOrNil("4069")
+	}
+	containerMemoryInt, _ := strconv.Atoi(*containerMemory)
+	containerMemoryInt64 := int64(containerMemoryInt)
+
+	containerName := name
+	if containerName == nil {
+		containerName = stringOrNil("default")
+	}
+
+	essential := true
+
+	env := make([]*ecs.KeyValuePair, 0)
+	for k := range environment {
+		if val, valOk := environment[k].(string); valOk {
+			env = append(env, &ecs.KeyValuePair{
+				Name:  stringOrNil(k),
+				Value: stringOrNil(val),
+			})
+		}
+	}
+
+	var healthCheck *ecs.HealthCheck
+	portMappings := make([]*ecs.PortMapping, 0)
+
+	if security != nil {
+		if ingress, ingressOk := security["ingress"]; ingressOk {
+			switch ingress.(type) {
+			case map[string]interface{}:
+				ingressCfg := ingress.(map[string]interface{})
+				for cidr := range ingressCfg {
+					if tcp, tcpOk := ingressCfg[cidr].(map[string]interface{})["tcp"].([]interface{}); tcpOk {
+						for i := range tcp {
+							port := int64(tcp[i].(float64))
+							portMappings = append(portMappings, &ecs.PortMapping{
+								ContainerPort: &port,
+								HostPort:      &port,
+								Protocol:      stringOrNil("tcp"),
+							})
+						}
+					}
+
+					if udp, udpOk := ingressCfg[cidr].(map[string]interface{})["udp"].([]interface{}); udpOk {
+						for i := range udp {
+							port := int64(udp[i].(float64))
+							portMappings = append(portMappings, &ecs.PortMapping{
+								ContainerPort: &port,
+								HostPort:      &port,
+								Protocol:      stringOrNil("udp"),
+							})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	containers := make([]*ecs.ContainerDefinition, 0)
+	container := &ecs.ContainerDefinition{
+		Command:      cmd,
+		Cpu:          &containerCPUInt64,
+		EntryPoint:   entrypoint,
+		Environment:  env,
+		Essential:    &essential,
+		HealthCheck:  healthCheck,
+		Hostname:     hostname,
+		Image:        stringOrNil(image),
+		Memory:       &containerMemoryInt64,
+		Name:         containerName,
+		PortMappings: portMappings,
+	}
+	containers = append(containers, container)
+
+	response, err = client.RegisterTaskDefinition(&ecs.RegisterTaskDefinitionInput{
+		ContainerDefinitions:    containers,
+		Cpu:                     containerCPU,
+		ExecutionRoleArn:        executionRoleArn,
+		Family:                  stringOrNil(taskDefinition),
+		Memory:                  containerMemory,
+		NetworkMode:             stringOrNil("awsvpc"), // awsvpc required for fargate
+		RequiresCompatibilities: []*string{stringOrNil("fargate")},
+		TaskRoleArn:             taskRoleArn,
+	})
+
+	if err != nil {
+		log.Warningf("ECS task definition retrieval failed for task definition: %;: %s", taskDefinition, err.Error())
+		return nil, err
+	}
+
+	return response, err
+}
+
 // GetTaskDefinition retrieves ECS task definition containing one or more docker containers
 func GetTaskDefinition(accessKeyID, secretAccessKey, region, taskDefinition string) (response *ecs.DescribeTaskDefinitionOutput, err error) {
 	client, err := NewECS(accessKeyID, secretAccessKey, region)
@@ -1003,7 +1113,13 @@ func TerminateInstance(accessKeyID, secretAccessKey, region, instanceID string) 
 }
 
 // StartContainer starts a new ECS task for the given task definition
-func StartContainer(accessKeyID, secretAccessKey, region, taskDefinition string, launchType, cluster, vpcName *string, securityGroupIds []string, subnetIds []string, overrides map[string]interface{}) (taskIds []string, err error) {
+func StartContainer(
+	accessKeyID, secretAccessKey, region, taskDefinition string,
+	launchType, cluster, vpcName *string,
+	securityGroupIds []string,
+	subnetIds []string,
+	overrides map[string]interface{},
+) (taskIds []string, err error) {
 	client, err := NewECS(accessKeyID, secretAccessKey, region)
 
 	if launchType == nil {
