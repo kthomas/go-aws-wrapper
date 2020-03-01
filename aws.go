@@ -115,7 +115,7 @@ func CreateTaskDefinition(
 	name, executionRoleArn, taskRoleArn, hostname *string,
 	cpu, memory *int64,
 	cmd, entrypoint []*string,
-	environment, security map[string]interface{},
+	environment, security, volumes map[string]interface{},
 ) (response *ecs.RegisterTaskDefinitionOutput, err error) {
 	client, err := NewECS(accessKeyID, secretAccessKey, region)
 
@@ -136,6 +136,15 @@ func CreateTaskDefinition(
 		containerName = stringOrNil("default")
 	}
 	containerName = stringOrNil(strings.ReplaceAll(*containerName, "/", "-"))
+
+	containerVolumes := make([]*ecs.Volume, 0)
+	if volumes != nil && len(volumes) > 0 {
+		// TODO...
+		// append(containerVolumes, &ecs.Volume{
+		// 	Host: *HostVolumeProperties `locationName:"host" type:"structure"`
+		// 	Name *string `locationName:"name" type:"string"`
+		// })
+	}
 
 	essential := true
 
@@ -212,6 +221,7 @@ func CreateTaskDefinition(
 		NetworkMode:             stringOrNil("awsvpc"), // awsvpc required for fargate
 		RequiresCompatibilities: []*string{stringOrNil("FARGATE")},
 		TaskRoleArn:             taskRoleArn,
+		Volumes:                 containerVolumes,
 	})
 
 	if err != nil {
@@ -1241,6 +1251,7 @@ func StartContainer(
 			[]*string{},
 			map[string]interface{}{},
 			security,
+			map[string]interface{}{},
 		)
 		if err != nil {
 			return taskIds, fmt.Errorf("Failed to create container in region: %s; %s", region, err.Error())
