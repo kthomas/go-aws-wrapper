@@ -210,7 +210,7 @@ func CreateTaskDefinition(
 		logConfiguration.Options = logDriverOptions
 	}
 
-	if logGroup, logGroupOk := logDriverOptions["awslogs-group"]; logGroupOk {
+	if logGroup, logGroupOk := logConfiguration.Options["awslogs-group"]; logGroupOk {
 		cloudwatch, err := NewCloudwatchLogs(accessKeyID, secretAccessKey, region)
 		if err == nil {
 			cloudwatch.CreateLogGroup(&cloudwatchlogs.CreateLogGroupInput{
