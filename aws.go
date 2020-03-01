@@ -1250,7 +1250,7 @@ func StartContainer(
 			return taskIds, fmt.Errorf("Failed to start container in region: %s; failed to retrieve created task definition; %s", region, err.Error())
 		}
 		taskDefinitionResp = taskDefResp
-		containerTaskDefinition = taskDefinition
+		containerTaskDefinition = stringOrNil(fmt.Sprintf("%s:%d", *taskDefinitionResp.TaskDefinition.Family, *taskDefinitionResp.TaskDefinition.Revision))
 	}
 
 	containerOverrides := make([]*ecs.ContainerOverride, 0)
