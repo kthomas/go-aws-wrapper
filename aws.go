@@ -195,14 +195,22 @@ func CreateTaskDefinition(
 
 	containers := make([]*ecs.ContainerDefinition, 0)
 	container := &ecs.ContainerDefinition{
-		Command:      cmd,
-		Cpu:          containerCPU,
-		EntryPoint:   entrypoint,
-		Environment:  env,
-		Essential:    &essential,
-		HealthCheck:  healthCheck,
-		Hostname:     hostname,
-		Image:        stringOrNil(image),
+		Command:     cmd,
+		Cpu:         containerCPU,
+		EntryPoint:  entrypoint,
+		Environment: env,
+		Essential:   &essential,
+		HealthCheck: healthCheck,
+		Hostname:    hostname,
+		Image:       stringOrNil(image),
+		LogConfiguration: &ecs.LogConfiguration{
+			LogDriver: stringOrNil("awslogs"),
+			Options: map[string]*string{
+				"awslogs-group":         stringOrNil(fmt.Sprintf("/ecs/%s", *containerName)),
+				"awslogs-region":        stringOrNil(region),
+				"awslogs-stream-prefix": stringOrNil("ecs"),
+			},
+		},
 		Memory:       containerMemory,
 		Name:         containerName,
 		PortMappings: portMappings,
