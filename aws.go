@@ -120,7 +120,7 @@ func CreateTaskDefinition(
 
 	containerCPU := cpu
 	if containerCPU == nil {
-		containerCPU = stringOrNil("2048")
+		containerCPU = stringOrNil("2 vCPU")
 	}
 	containerCPUInt, _ := strconv.Atoi(*containerCPU)
 	containerCPUInt64 := int64(containerCPUInt)
@@ -230,6 +230,22 @@ func GetTaskDefinition(accessKeyID, secretAccessKey, region, taskDefinition stri
 
 	if err != nil {
 		log.Warningf("ECS task definition retrieval failed for task definition: %;: %s", taskDefinition, err.Error())
+		return nil, err
+	}
+
+	return response, err
+}
+
+// DeregisterTaskDefinition retrieves ECS task definition containing one or more docker containers
+func DeregisterTaskDefinition(accessKeyID, secretAccessKey, region, taskDefinition string) (response *ecs.DeregisterTaskDefinitionOutput, err error) {
+	client, err := NewECS(accessKeyID, secretAccessKey, region)
+
+	response, err = client.DeregisterTaskDefinition(&ecs.DeregisterTaskDefinitionInput{
+		TaskDefinition: stringOrNil(taskDefinition),
+	})
+
+	if err != nil {
+		log.Warningf("ECS task definition deregistration failed for task definition: %;: %s", taskDefinition, err.Error())
 		return nil, err
 	}
 
