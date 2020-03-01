@@ -1163,7 +1163,7 @@ func TerminateInstance(accessKeyID, secretAccessKey, region, instanceID string) 
 // StartContainer starts a new ECS task for the given task definition
 func StartContainer(
 	accessKeyID, secretAccessKey, region string,
-	image, taskDefinition *string,
+	image, taskDefinition, taskRoleArn, executionRoleArn *string,
 	launchType, cluster, vpcName *string,
 	cpu, memory *int64,
 	entrypoint []*string,
@@ -1262,8 +1262,8 @@ func StartContainer(
 			*containerTaskDefinition,
 			*image,
 			image,
-			nil,
-			nil,
+			executionRoleArn,
+			taskRoleArn,
 			nil,
 			nil,
 			cpu,
