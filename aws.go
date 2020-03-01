@@ -112,10 +112,11 @@ func LaunchAMI(accessKeyID, secretAccessKey, region, imageID, userData string, m
 // CreateTaskDefinition creates an ECS task definition containing a single container
 func CreateTaskDefinition(
 	accessKeyID, secretAccessKey, region, taskDefinition, image string,
-	name, executionRoleArn, taskRoleArn, hostname *string,
+	name, executionRoleArn, taskRoleArn, logDriver, hostname *string,
 	cpu, memory *int64,
 	cmd, entrypoint []*string,
 	environment, security, volumes map[string]interface{},
+	logDriverOptions map[string]*string,
 ) (response *ecs.RegisterTaskDefinitionOutput, err error) {
 	client, err := NewECS(accessKeyID, secretAccessKey, region)
 
@@ -193,27 +194,36 @@ func CreateTaskDefinition(
 		}
 	}
 
+	logConfiguration := &ecs.LogConfiguration{
+		LogDriver: stringOrNil("awslogs"),
+		Options: map[string]*string{
+			"awslogs-group":         stringOrNil(fmt.Sprintf("/ecs/%s", *containerName)),
+			"awslogs-region":        stringOrNil(region),
+			"awslogs-stream-prefix": stringOrNil("ecs"),
+		},
+	}
+
+	if logDriver != nil {
+		logConfiguration.LogDriver = logDriver
+	}
+	if logDriverOptions != nil && len(logDriverOptions) > 0 {
+		logConfiguration.Options = logDriverOptions
+	}
+
 	containers := make([]*ecs.ContainerDefinition, 0)
 	container := &ecs.ContainerDefinition{
-		Command:     cmd,
-		Cpu:         containerCPU,
-		EntryPoint:  entrypoint,
-		Environment: env,
-		Essential:   &essential,
-		HealthCheck: healthCheck,
-		Hostname:    hostname,
-		Image:       stringOrNil(image),
-		LogConfiguration: &ecs.LogConfiguration{
-			LogDriver: stringOrNil("awslogs"),
-			Options: map[string]*string{
-				"awslogs-group":         stringOrNil(fmt.Sprintf("/ecs/%s", *containerName)),
-				"awslogs-region":        stringOrNil(region),
-				"awslogs-stream-prefix": stringOrNil("ecs"),
-			},
-		},
-		Memory:       containerMemory,
-		Name:         containerName,
-		PortMappings: portMappings,
+		Command:          cmd,
+		Cpu:              containerCPU,
+		EntryPoint:       entrypoint,
+		Environment:      env,
+		Essential:        &essential,
+		HealthCheck:      healthCheck,
+		Hostname:         hostname,
+		Image:            stringOrNil(image),
+		LogConfiguration: logConfiguration,
+		Memory:           containerMemory,
+		Name:             containerName,
+		PortMappings:     portMappings,
 	}
 	containers = append(containers, container)
 
@@ -1255,6 +1265,7 @@ func StartContainer(
 			nil,
 			nil,
 			nil,
+			nil,
 			cpu,
 			memory,
 			[]*string{},
@@ -1262,6 +1273,7 @@ func StartContainer(
 			map[string]interface{}{},
 			security,
 			map[string]interface{}{},
+			map[string]*string{},
 		)
 		if err != nil {
 			return taskIds, fmt.Errorf("Failed to create container in region: %s; %s", region, err.Error())
