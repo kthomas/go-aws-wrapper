@@ -112,7 +112,8 @@ func LaunchAMI(accessKeyID, secretAccessKey, region, imageID, userData string, m
 // CreateTaskDefinition creates an ECS task definition containing a single container
 func CreateTaskDefinition(
 	accessKeyID, secretAccessKey, region, taskDefinition, image string,
-	name, cpu, memory, executionRoleArn, taskRoleArn, hostname *string,
+	name, executionRoleArn, taskRoleArn, hostname *string,
+	cpu, memory *int64,
 	cmd, entrypoint []*string,
 	environment, security map[string]interface{},
 ) (response *ecs.RegisterTaskDefinitionOutput, err error) {
@@ -120,17 +121,15 @@ func CreateTaskDefinition(
 
 	containerCPU := cpu
 	if containerCPU == nil {
-		containerCPU = stringOrNil("2 vCPU")
+		ccpu := int64(2048)
+		containerCPU = &ccpu
 	}
-	containerCPUInt, _ := strconv.Atoi(*containerCPU)
-	containerCPUInt64 := int64(containerCPUInt)
 
 	containerMemory := memory
 	if containerMemory == nil {
-		containerMemory = stringOrNil("4069")
+		cmem := int64(4096)
+		containerMemory = &cmem
 	}
-	containerMemoryInt, _ := strconv.Atoi(*containerMemory)
-	containerMemoryInt64 := int64(containerMemoryInt)
 
 	containerName := name
 	if containerName == nil {
@@ -188,25 +187,28 @@ func CreateTaskDefinition(
 	containers := make([]*ecs.ContainerDefinition, 0)
 	container := &ecs.ContainerDefinition{
 		Command:      cmd,
-		Cpu:          &containerCPUInt64,
+		Cpu:          containerCPU,
 		EntryPoint:   entrypoint,
 		Environment:  env,
 		Essential:    &essential,
 		HealthCheck:  healthCheck,
 		Hostname:     hostname,
 		Image:        stringOrNil(image),
-		Memory:       &containerMemoryInt64,
+		Memory:       containerMemory,
 		Name:         containerName,
 		PortMappings: portMappings,
 	}
 	containers = append(containers, container)
 
+	containerVCPU := fmt.Sprintf("%d vCPU", *containerCPU/1024)
+	containerMemoryStr := fmt.Sprintf("%d", containerMemory)
+
 	response, err = client.RegisterTaskDefinition(&ecs.RegisterTaskDefinitionInput{
 		ContainerDefinitions:    containers,
-		Cpu:                     containerCPU,
+		Cpu:                     &containerVCPU,
 		ExecutionRoleArn:        executionRoleArn,
 		Family:                  stringOrNil(taskDefinition),
-		Memory:                  containerMemory,
+		Memory:                  &containerMemoryStr,
 		NetworkMode:             stringOrNil("awsvpc"), // awsvpc required for fargate
 		RequiresCompatibilities: []*string{stringOrNil("FARGATE")},
 		TaskRoleArn:             taskRoleArn,
