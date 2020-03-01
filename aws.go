@@ -219,6 +219,15 @@ func CreateTaskDefinition(
 		}
 	}
 
+	ulimits := make([]*ecs.Ulimit, 0)
+
+	nofileUlimit := int64(65000)
+	ulimits = append(ulimits, &ecs.Ulimit{
+		Name:      stringOrNil("nofile"),
+		SoftLimit: &nofileUlimit,
+		HardLimit: &nofileUlimit,
+	})
+
 	containers := make([]*ecs.ContainerDefinition, 0)
 	container := &ecs.ContainerDefinition{
 		Command:          cmd,
@@ -233,6 +242,7 @@ func CreateTaskDefinition(
 		Memory:           containerMemory,
 		Name:             containerName,
 		PortMappings:     portMappings,
+		Ulimits:          ulimits,
 	}
 	containers = append(containers, container)
 
