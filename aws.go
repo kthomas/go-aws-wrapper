@@ -120,7 +120,7 @@ func CreateTaskDefinition(
 
 	containerCPU := cpu
 	if containerCPU == nil {
-		containerCPU = stringOrNil("1024")
+		containerCPU = stringOrNil("2048")
 	}
 	containerCPUInt, _ := strconv.Atoi(*containerCPU)
 	containerCPUInt64 := int64(containerCPUInt)
