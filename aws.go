@@ -201,7 +201,7 @@ func CreateTaskDefinition(
 	containers = append(containers, container)
 
 	containerVCPU := fmt.Sprintf("%d vCPU", *containerCPU/1024)
-	containerMemoryStr := fmt.Sprintf("%d", containerMemory)
+	containerMemoryStr := fmt.Sprintf("%d", *containerMemory)
 
 	response, err = client.RegisterTaskDefinition(&ecs.RegisterTaskDefinitionInput{
 		ContainerDefinitions:    containers,
