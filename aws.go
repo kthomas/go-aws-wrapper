@@ -137,6 +137,8 @@ func CreateTaskDefinition(
 		containerName = stringOrNil("default")
 	}
 	containerName = stringOrNil(strings.ReplaceAll(*containerName, "/", "-"))
+	containerName = stringOrNil(strings.ReplaceAll(*containerName, ".", "-"))
+	containerName = stringOrNil(strings.ReplaceAll(*containerName, ":", "-"))
 
 	containerVolumes := make([]*ecs.Volume, 0)
 	if volumes != nil && len(volumes) > 0 {
@@ -1274,14 +1276,13 @@ func StartContainer(
 		log.Debugf("Attempting to create task definition for image: %s", *image)
 		containerTaskDefinitionUUID, _ := uuid.NewV4()
 		containerTaskDefinition = stringOrNil(containerTaskDefinitionUUID.String())
-		containerName := strings.ReplaceAll(*image, ".", "-")
 		_, err := CreateTaskDefinition(
 			accessKeyID,
 			secretAccessKey,
 			region,
 			*containerTaskDefinition,
 			*image,
-			&containerName,
+			image,
 			executionRoleArn,
 			taskRoleArn,
 			nil,
