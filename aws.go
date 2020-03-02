@@ -1274,13 +1274,14 @@ func StartContainer(
 		log.Debugf("Attempting to create task definition for image: %s", *image)
 		containerTaskDefinitionUUID, _ := uuid.NewV4()
 		containerTaskDefinition = stringOrNil(containerTaskDefinitionUUID.String())
+		containerName := strings.ReplaceAll(*image, ".", "-")
 		_, err := CreateTaskDefinition(
 			accessKeyID,
 			secretAccessKey,
 			region,
 			*containerTaskDefinition,
 			*image,
-			image,
+			&containerName,
 			executionRoleArn,
 			taskRoleArn,
 			nil,
