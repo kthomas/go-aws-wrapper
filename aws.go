@@ -196,22 +196,23 @@ func CreateTaskDefinition(
 		}
 	}
 
-	logConfiguration := &ecs.LogConfiguration{
-		LogDriver: stringOrNil("awslogs"),
-		Options: map[string]*string{
-			"awslogs-group":         stringOrNil(fmt.Sprintf("/ecs/%s", *containerName)),
-			"awslogs-region":        stringOrNil(region),
-			"awslogs-stream-prefix": stringOrNil("ecs"),
-		},
-	}
-
+	logConfiguration := &ecs.LogConfiguration{}
 	if logDriver != nil {
 		logConfiguration.LogDriver = logDriver
+	}
+	if logConfiguration.LogDriver == nil && executionRoleArn != nil {
+		logConfiguration = &ecs.LogConfiguration{
+			LogDriver: stringOrNil("awslogs"),
+			Options: map[string]*string{
+				"awslogs-group":         stringOrNil(fmt.Sprintf("/ecs/%s", *containerName)),
+				"awslogs-region":        stringOrNil(region),
+				"awslogs-stream-prefix": stringOrNil("ecs"),
+			},
+		}
 	}
 	if logDriverOptions != nil && len(logDriverOptions) > 0 {
 		logConfiguration.Options = logDriverOptions
 	}
-
 	if logGroup, logGroupOk := logConfiguration.Options["awslogs-group"]; logGroupOk {
 		cloudwatch, err := NewCloudwatchLogs(accessKeyID, secretAccessKey, region)
 		if err == nil {
