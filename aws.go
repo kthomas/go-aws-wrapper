@@ -213,12 +213,17 @@ func CreateTaskDefinition(
 	if logDriverOptions != nil && len(logDriverOptions) > 0 {
 		logConfiguration.Options = logDriverOptions
 	}
-	if logGroup, logGroupOk := logConfiguration.Options["awslogs-group"]; logGroupOk {
-		cloudwatch, err := NewCloudwatchLogs(accessKeyID, secretAccessKey, region)
-		if err == nil {
-			cloudwatch.CreateLogGroup(&cloudwatchlogs.CreateLogGroupInput{
-				LogGroupName: logGroup,
-			})
+	if logConfiguration.LogDriver == nil {
+		logConfiguration = nil
+	}
+	if logConfiguration != nil {
+		if logGroup, logGroupOk := logConfiguration.Options["awslogs-group"]; logGroupOk {
+			cloudwatch, err := NewCloudwatchLogs(accessKeyID, secretAccessKey, region)
+			if err == nil {
+				cloudwatch.CreateLogGroup(&cloudwatchlogs.CreateLogGroupInput{
+					LogGroupName: logGroup,
+				})
+			}
 		}
 	}
 
