@@ -114,7 +114,7 @@ func CreateTaskDefinition(
 	accessKeyID, secretAccessKey, region, taskDefinition, image string,
 	name, executionRoleArn, taskRoleArn, logDriver, hostname *string,
 	cpu, memory *int64,
-	cmd, entrypoint []*string,
+	cmd, entrypoint []string,
 	environment, security, volumes map[string]interface{},
 	logDriverOptions map[string]*string,
 ) (response *ecs.RegisterTaskDefinitionOutput, err error) {
@@ -236,11 +236,21 @@ func CreateTaskDefinition(
 		HardLimit: &nofileUlimit,
 	})
 
+	_cmd := make([]*string, 0)
+	for _, part := range cmd {
+		_cmd = append(_cmd, &part)
+	}
+
+	_entrypoint := make([]*string, 0)
+	for _, part := range entrypoint {
+		_entrypoint = append(_entrypoint, &part)
+	}
+
 	containers := make([]*ecs.ContainerDefinition, 0)
 	container := &ecs.ContainerDefinition{
-		Command:          cmd,
+		Command:          _cmd,
 		Cpu:              containerCPU,
-		EntryPoint:       entrypoint,
+		EntryPoint:       _entrypoint,
 		Environment:      env,
 		Essential:        &essential,
 		HealthCheck:      healthCheck,
@@ -1193,7 +1203,7 @@ func StartContainer(
 	image, taskDefinition, taskRoleArn, executionRoleArn *string,
 	launchType, cluster, vpcName *string,
 	cpu, memory *int64,
-	entrypoint []*string,
+	entrypoint []string,
 	securityGroupIds []string,
 	subnetIds []string,
 	environment map[string]interface{},
@@ -1295,7 +1305,7 @@ func StartContainer(
 			nil,
 			cpu,
 			memory,
-			[]*string{},
+			[]string{},
 			entrypoint,
 			map[string]interface{}{},
 			security,
