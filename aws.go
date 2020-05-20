@@ -961,6 +961,22 @@ func GetSubnets(accessKeyID, secretAccessKey, region string, vpcID *string) (res
 	return response, err
 }
 
+// CreateCluster creates an ECS cluster for the given region
+func CreateCluster(accessKeyID, secretAccessKey, region string, name *string) (response *ecs.CreateClusterOutput, err error) {
+	client, err := NewECS(accessKeyID, secretAccessKey, region)
+
+	response, err = client.CreateCluster(&ecs.CreateClusterInput{
+		ClusterName: name,
+	})
+
+	if err != nil {
+		log.Warningf("ECS cluster creation failed for region: %s; %s", region, err.Error())
+		return nil, err
+	}
+
+	return response, err
+}
+
 // GetClusters retrieves ECS cluster details for the given region
 func GetClusters(accessKeyID, secretAccessKey, region string) (response *ecs.ListClustersOutput, err error) {
 	client, err := NewECS(accessKeyID, secretAccessKey, region)
@@ -1213,12 +1229,20 @@ func StartContainer(
 		launchType = stringOrNil("FARGATE")
 	}
 
+	clusters, err := GetClusters(accessKeyID, secretAccessKey, region)
+	clustersOk := err == nil
+
 	if cluster == nil {
-		clusters, err := GetClusters(accessKeyID, secretAccessKey, region)
-		if err == nil {
-			if len(clusters.ClusterArns) > 0 {
-				cluster = clusters.ClusterArns[0]
+		if clustersOk && len(clusters.ClusterArns) > 0 {
+			cluster = clusters.ClusterArns[0]
+		}
+
+		if cluster == nil {
+			createdCluster, err := CreateCluster(accessKeyID, secretAccessKey, region, nil)
+			if err != nil {
+				return taskIds, fmt.Errorf("Failed to start container in region: %s; failed to provision cluster; %s", region, err.Error())
 			}
+			cluster = createdCluster.Cluster.ClusterName
 		}
 	}
 
