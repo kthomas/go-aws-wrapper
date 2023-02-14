@@ -1,5 +1,5 @@
-github.com/aws/aws-sdk-go v1.31.8 h1:qbA8nsLYcqtGjMGDogqykuO0LyUONkP9YlsKu1SVV5M=
-github.com/aws/aws-sdk-go v1.31.8/go.mod h1:5zCpMtNQVjRREroY7sYe8lOMRSxkhG6MZveU8YkpAk0=
+github.com/aws/aws-sdk-go v1.34.0 h1:brux2dRrlwCF5JhTL7MUT3WUwo9zfDHZZp3+g3Mvlmo=
+github.com/aws/aws-sdk-go v1.34.0/go.mod h1:5zCpMtNQVjRREroY7sYe8lOMRSxkhG6MZveU8YkpAk0=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -8,14 +8,11 @@ github.com/jmespath/go-jmespath v0.3.0 h1:OS12ieG61fsCg5+qLJ+SsW9NicxNkg3b25OyT2
 github.com/jmespath/go-jmespath v0.3.0/go.mod h1:9QtRXoHjLGCJ5IBSaohpXITPlowMeeYCZ7fLUTSywik=
 github.com/konsorten/go-windows-terminal-sequences v1.0.3 h1:CE8S1cTafDpPvMhIxNJKvHsGVBgn1xWYf1NbHQhywc8=
 github.com/konsorten/go-windows-terminal-sequences v1.0.3/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
-github.com/kthomas/go-logger v0.0.0-20200602041232-5c46e0cab608 h1:izlCyvp4a5zcOQMOei5To9ruj+fN/kqo9cR2CQF2vIE=
 github.com/kthomas/go-logger v0.0.0-20200602041232-5c46e0cab608/go.mod h1:sXRQB767yNz+melLbxSNF+yu0H7kxguvoJHqa47Mxh4=
 github.com/kthomas/go-logger v0.0.0-20200602072946-d7d72dfc2531 h1:8SnbaD9jO9OWBECn2X6IcCLz8RASFgB0bLbVNtt7yGE=
 github.com/kthomas/go-logger v0.0.0-20200602072946-d7d72dfc2531/go.mod h1:sXRQB767yNz+melLbxSNF+yu0H7kxguvoJHqa47Mxh4=
 github.com/kthomas/go-self-signed-cert v0.0.0-20200602041729-f9878375d46e h1:G//bQmubE/JtHY10bbiPnulIuDi1zHkjuP9QpcB4+8I=
 github.com/kthomas/go-self-signed-cert v0.0.0-20200602041729-f9878375d46e/go.mod h1:2U4e9gFnjUVWhKO7bMhpRh5k3SoQIZAsahqb+gQhaFI=
-github.com/kthomas/go.uuid v1.2.0 h1:hIouovEbAJRXPuN4VKnfY6hXRHbip+OWzq2baGckS90=
-github.com/kthomas/go.uuid v1.2.0/go.mod h1:HqzG4AC71EusLj6ojuBNx8UKX03eWGSSXNYuKE7sUNo=
 github.com/kthomas/go.uuid v1.2.1-0.20190324131420-28d1fa77e9a4 h1:xWgita+beQTA+NaWz1dSFnWMZFLFPpRNZ0NdG1VOfOQ=
 github.com/kthomas/go.uuid v1.2.1-0.20190324131420-28d1fa77e9a4/go.mod h1:HqzG4AC71EusLj6ojuBNx8UKX03eWGSSXNYuKE7sUNo=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
